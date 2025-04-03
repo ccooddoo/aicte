@@ -1,0 +1,37 @@
+/* ✅ Category Slider */
+.category-slider {
+  width: 90%;
+  margin: 20px auto; /* Add spacing above hero image */
+  text-align: center;
+}
+
+.category-slide {
+  padding: 10px;
+}
+
+/* ✅ Category Box */
+.category-box {
+  display: block;
+  text-align: center;
+  transition: transform 0.3s;
+}
+
+.category-box:hover {
+  transform: scale(1.05);
+}
+
+/* ✅ Category Image */
+.category-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+/* ✅ Hero Image */
+.hero-image {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 10px;
+}
