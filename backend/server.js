@@ -1,206 +1,133 @@
-require("dotenv").config(); // Load environment variables
+import React, { useState } from "react";
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  Alert,
+  Box,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+} from "@mui/material";
+import axios from "axios";
 
-const express = require("express");
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const cors = require("cors");
-const multer = require("multer");
-const path = require("path");
+const API_URL = "https://cookpad.onrender.com/api/recipes"; // Update with your backend URL
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Support form data
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
+const AddRecipe = () => {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [ingredients, setIngredients] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error");
 
-// ✅ Use environment-based MongoDB connection
-const MONGO_URI = process.env.MONGO_URI; // Always use MongoDB Atlas in production
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage("");
 
-const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
-
-// ✅ Connect to MongoDB
-mongoose
-  .connect(MONGO_URI, { useUnifiedTopology: true })
-  .then(() => console.log(`✅ Connected to MongoDB: ${MONGO_URI}`))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
-
-// ✅ User Schema
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-});
-
-const User = mongoose.model("User", userSchema);
-
-// ✅ Recipe Schema
-const recipeSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  category: { type: String, required: true },
-  ingredients: [String],
-  instructions: { type: String, required: true },
-  image: String,
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-});
-
-const Recipe = mongoose.model("Recipe", recipeSchema);
-
-// ✅ Register API
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password)
-      return res.status(400).json({ message: "All fields are required!" });
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "User already exists!" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, email, password: hashedPassword });
-    await newUser.save();
-
-    res.status(201).json({ message: "User registered successfully!" });
-  } catch (error) {
-    console.error("❌ Registration error:", error);
-    res.status(500).json({ message: "Server error. Try again!" });
-  }
-});
-
-// ✅ Login API
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid email or password" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
-
-    const token = jwt.sign({ userId: user._id, username: user.username }, JWT_SECRET, { expiresIn: "1h" });
-
-    res.json({ message: "Login successful", token, username: user.username, userId: user._id });
-  } catch (error) {
-    console.error("❌ Login error:", error);
-    res.status(500).json({ message: "Server error. Try again!" });
-  }
-});
-
-// ✅ Middleware to verify JWT token
-const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"];
-  if (!token) return res.status(401).json({ message: "Access denied!" });
-
-  try {
-    const decoded = jwt.verify(token.split(" ")[1], JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(403).json({ message: "Invalid token!" });
-  }
-};
-
-// ✅ Image Upload Configuration
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
-  },
-});
-
-const upload = multer({ storage });
-
-// ✅ Add Recipe API (Protected)
-app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) => {
-  try {
-    const { title, category, ingredients, instructions } = req.body;
-    if (!title || !category || !ingredients || !instructions)
-      return res.status(400).json({ message: "All fields are required!" });
-
-    const formattedIngredients = Array.isArray(ingredients) ? ingredients : ingredients.split(",").map(i => i.trim());
-
-    const newRecipe = new Recipe({
-      title,
-      category,
-      ingredients: formattedIngredients,
-      instructions,
-      image: req.file ? `/uploads/${req.file.filename}` : null,
-      createdBy: req.user.userId,
-    });
-
-    await newRecipe.save();
-    res.status(201).json({ message: "Recipe added successfully!", recipe: newRecipe });
-  } catch (error) {
-    console.error("❌ Error adding recipe:", error);
-    res.status(500).json({ message: "Server error. Try again!" });
-  }
-});
-
-// ✅ Get All Recipes or Filter by Category
-app.get("/api/recipes", async (req, res) => {
-  try {
-    const { category } = req.query;
-    const query = category ? { category } : {};
-
-    const recipes = await Recipe.find(query).populate("createdBy", "username");
-    res.status(200).json(recipes);
-  } catch (error) {
-    console.error("❌ Error fetching recipes:", error);
-    res.status(500).json({ message: "Failed to fetch recipes!" });
-  }
-});
-
-// ✅ Edit Recipe API (Only Owner Can Edit)
-app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res) => {
-  try {
-    const { title, category, ingredients, instructions } = req.body;
-
-    const recipe = await Recipe.findById(req.params.id);
-    if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
-
-    if (recipe.createdBy.toString() !== req.user.userId)
-      return res.status(403).json({ message: "Unauthorized action!" });
-
-    const updateData = {
-      title,
-      category,
-      ingredients: Array.isArray(ingredients) ? ingredients : ingredients.split(",").map(i => i.trim()),
-      instructions,
-    };
-
-    if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+    if (!title || !category || !ingredients || !instructions) {
+      setMessage("All fields are required!");
+      setMessageType("error");
+      return;
     }
 
-    const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("category", category);
+    formData.append("ingredients", ingredients);
+    formData.append("instructions", instructions);
+    if (image) formData.append("image", image);
 
-    res.json({ message: "Recipe updated successfully!", recipe: updatedRecipe });
-  } catch (error) {
-    console.error("❌ Error updating recipe:", error);
-    res.status(500).json({ message: "Failed to update recipe!" });
-  }
-});
+    const token = localStorage.getItem("token");
 
-// ✅ Delete Recipe API (Only Owner Can Delete)
-app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
-  try {
-    const recipe = await Recipe.findById(req.params.id);
-    if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
+    if (!token) {
+      setMessage("You must be logged in to add a recipe.");
+      setMessageType("error");
+      return;
+    }
 
-    if (recipe.createdBy.toString() !== req.user.userId)
-      return res.status(403).json({ message: "Unauthorized action!" });
+    try {
+      const response = await axios.post(API_URL, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-    await Recipe.findByIdAndDelete(req.params.id);
-    res.json({ message: "Recipe deleted successfully!" });
-  } catch (error) {
-    console.error("❌ Error deleting recipe:", error);
-    res.status(500).json({ message: "Failed to delete recipe!" });
-  }
-});
+      setMessage(response.data.message || "Recipe added successfully!");
+      setMessageType("success");
 
-// ✅ Start Server
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+      if (response.data.imageUrl) {
+        setUploadedImageUrl(response.data.imageUrl);
+      }
+
+      setTitle("");
+      setCategory("");
+      setIngredients("");
+      setInstructions("");
+      setImage(null);
+      setImagePreview(null);
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Failed to add recipe.");
+      setMessageType("error");
+    }
+  };
+
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ padding: "40px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)" }}>
+        <Typography variant="h4" sx={{ marginBottom: "20px", textAlign: "center" }}>
+          🍽️ Add New Recipe
+        </Typography>
+
+        {message && <Alert severity={messageType} sx={{ marginBottom: "15px" }}>{message}</Alert>}
+
+        <form onSubmit={handleSubmit}>
+          <TextField label="Title" fullWidth variant="outlined" value={title} onChange={(e) => setTitle(e.target.value)} required margin="normal" />
+
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Category</InputLabel>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)} required>
+              <MenuItem value="Vegetarian">🥦 Vegetarian</MenuItem>
+              <MenuItem value="Non-Vegetarian">🍗 Non-Vegetarian</MenuItem>
+              <MenuItem value="Desserts">🍰 Desserts</MenuItem>
+              <MenuItem value="Drinks">🥤 Drinks</MenuItem>
+              <MenuItem value="Snacks">🍟 Snacks</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField label="Ingredients (comma-separated)" fullWidth variant="outlined" value={ingredients} onChange={(e) => setIngredients(e.target.value)} required margin="normal" />
+          <TextField label="Instructions" fullWidth multiline rows={4} variant="outlined" value={instructions} onChange={(e) => setInstructions(e.target.value)} required margin="normal" />
+
+          <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginTop: "10px" }} />
+
+          {(imagePreview || uploadedImageUrl) && (
+            <Box sx={{ marginTop: "10px", textAlign: "center" }}>
+              <Typography variant="subtitle1">📷 Image Preview:</Typography>
+              <img src={uploadedImageUrl || imagePreview} alt="Preview" style={{ width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "5px" }} />
+            </Box>
+          )}
+
+          <Button type="submit" variant="contained" fullWidth sx={{ marginTop: "20px" }}>
+            ✅ Add Recipe
+          </Button>
+        </form>
+      </Box>
+    </Container>
+  );
+};
+
+export default AddRecipe;
