@@ -13,6 +13,8 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
+const API_URL = process.env.REACT_APP_API_URL || "https://cookpad.onrender.com/api/recipes"; // Ensure this is correct
+
 const AddRecipe = () => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -21,9 +23,6 @@ const AddRecipe = () => {
   const [image, setImage] = useState(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
-
-
-const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is correct
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
@@ -48,6 +47,12 @@ const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is co
 
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        setMessage("You must be logged in to add a recipe.");
+        setMessageType("error");
+        return;
+      }
+
       const response = await axios.post(API_URL, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -80,10 +85,7 @@ const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is co
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <Typography
-          variant="h4"
-          sx={{ marginBottom: "20px", textAlign: "center" }}
-        >
+        <Typography variant="h4" sx={{ marginBottom: "20px", textAlign: "center" }}>
           Add New Recipe
         </Typography>
 
@@ -102,11 +104,7 @@ const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is co
 
           <FormControl fullWidth margin="normal">
             <InputLabel>Category</InputLabel>
-            <Select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            >
+            <Select value={category} onChange={(e) => setCategory(e.target.value)} required>
               <MenuItem value="Vegetarian">Vegetarian</MenuItem>
               <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
               <MenuItem value="Desserts">Desserts</MenuItem>
@@ -136,7 +134,12 @@ const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is co
             margin="normal"
           />
 
-          <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginTop: "10px" }} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            style={{ marginTop: "10px", display: "block", marginBottom: "15px" }}
+          />
 
           <Button type="submit" variant="contained" fullWidth sx={{ marginTop: "20px" }}>
             Add Recipe
@@ -148,4 +151,3 @@ const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is co
 };
 
 export default AddRecipe;
-
