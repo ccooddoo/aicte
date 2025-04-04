@@ -11,13 +11,16 @@ const Login = () => {
   const { login } = useContext(AuthContext); // Getting login function from AuthContext
   const navigate = useNavigate(); // For navigation after successful login
 
+  // Get the API URL from environment variables
+  const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000"; // Defaulting to localhost in development
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null); // Resetting the error state before new login attempt
 
     try {
       // Sending a POST request to the backend for authentication
-      const response = await axios.post("http://localhost:5000/api/auth/login", { email, password });
+      const response = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
 
       // Storing received token and username in localStorage
       localStorage.setItem("token", response.data.token);
@@ -26,9 +29,19 @@ const Login = () => {
       // Calling the login function from context and redirecting to the profile page
       login(response.data.token);
       navigate("/profile"); // Redirect to the profile page after login
+
+      // Reset form fields after successful login
+      setEmail("");
+      setPassword("");
     } catch (error) {
       // Handling error and displaying the error message
-      setError(error.response?.data?.message || "Login failed!");
+      if (error.response) {
+        // Server-side error
+        setError(error.response?.data?.message || "Login failed!");
+      } else {
+        // Network or unexpected error
+        setError("An unexpected error occurred. Please try again later.");
+      }
     }
   };
 
