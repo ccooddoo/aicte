@@ -16,23 +16,35 @@ const AddRecipe = () => {
   const [instructions, setInstructions] = useState("");
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [file, setFile] = useState(null);
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("ingredients", ingredients);
+    formData.append("instructions", instructions);
+    if (file) formData.append("file", file);
+
     try {
-      await axios.post("http://localhost:5000/api/recipes", {
-        title,
-        ingredients,
-        instructions,
+      await axios.post("http://localhost:5000/api/recipes", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       setSuccess("Recipe added successfully!");
       setTitle("");
       setIngredients("");
       setInstructions("");
+      setFile(null);
     } catch (error) {
       setError(error.response?.data?.message || "Failed to add recipe!");
     }
@@ -81,6 +93,14 @@ const AddRecipe = () => {
             margin="normal"
             multiline
             rows={4}
+          />
+
+          {/* Upload button */}
+          <input
+            accept="image/*,application/pdf"
+            type="file"
+            onChange={handleFileChange}
+            style={{ marginTop: "20px" }}
           />
 
           <Button
