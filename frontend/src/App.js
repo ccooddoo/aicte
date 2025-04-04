@@ -11,6 +11,7 @@ import DrinksRecipes from "./pages/DrinksRecipes";
 import SnacksRecipes from "./pages/SnacksRecipes";
 import AddRecipe from "./components/AddRecipe";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import RecipeDetail from "./pages/RecipeDetail"; // ✅ Import RecipeDetail
 
@@ -33,6 +34,7 @@ const App = () => {
           <Route path="/snacks" element={<SnacksRecipes />} />
           <Route path="/add-recipe" element={<AddRecipe/>} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register/>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/recipe/:id" element={<RecipeDetail />} /> 
@@ -47,3 +49,4 @@ const App = () => {
 };
 
 export default App;
+
