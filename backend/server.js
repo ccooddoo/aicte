@@ -11,18 +11,20 @@ const path = require("path");
 const app = express();
 
 // ✅ CORS Configuration
-const CLIENT_URL = process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000"; // Frontend URL from .env
-app.use(cors({
-  origin: CLIENT_URL,  // Allow requests only from the frontend URL set in .env
-  credentials: true    // Allow cookies to be sent with requests
-}));
+const CLIENT_URL = process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000";
+app.use(
+  cors({
+    origin: CLIENT_URL,
+    credentials: true,
+  })
+);
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Support form data
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
 // ✅ MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URI_LOCAL; // Use local or Atlas MongoDB URI based on deployment
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URI_LOCAL;
 mongoose
   .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ Connected to MongoDB"))
@@ -30,7 +32,7 @@ mongoose
 
 // ✅ JWT Secret and Backend URL
 const JWT_SECRET = process.env.JWT_SECRET;
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000"; // Backend URL from .env
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
 
 // ✅ User Schema
 const userSchema = new mongoose.Schema({
@@ -97,15 +99,23 @@ app.post("/api/auth/login", async (req, res) => {
 
 // ✅ Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"];
-  if (!token) return res.status(401).json({ message: "Access denied!" });
-
   try {
-    const decoded = jwt.verify(token.split(" ")[1], JWT_SECRET);
-    req.user = decoded;
-    next();
+    const authHeader = req.headers["authorization"];
+
+    // Check if token exists and starts with "Bearer "
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Access denied! Token missing or invalid." });
+    }
+
+    const token = authHeader.split(" ")[1]; // Extract the token after "Bearer "
+
+    // Verify the token using JWT_SECRET
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded; // Attach user data to the request object
+    next(); // Proceed to the next middleware
   } catch (error) {
-    res.status(403).json({ message: "Invalid token!" });
+    console.error("❌ Token verification failed:", error.message);
+    return res.status(403).json({ message: "Invalid token!" });
   }
 };
 
