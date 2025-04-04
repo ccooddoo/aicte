@@ -9,22 +9,23 @@ const multer = require("multer");
 const path = require("path");
 
 const app = express();
-app.use(cors());
+
+// ✅ Configure CORS for frontend
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Support form data
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
-// ✅ Use environment-based MongoDB connection
-const MONGO_URI = process.env.MONGO_URI; // Always use MongoDB Atlas in production
-
-
-const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
-
-// ✅ Connect to MongoDB
+// ✅ MongoDB Connection
+const MONGO_URI = process.env.MONGO_URI;
 mongoose
-  .connect(MONGO_URI, { useUnifiedTopology: true })
-  .then(() => console.log(`✅ Connected to MongoDB: ${MONGO_URI}`))
+  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log(`✅ Connected to MongoDB`))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ✅ User Schema
@@ -81,7 +82,7 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
 
-    const token = jwt.sign({ userId: user._id, username: user.username }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     res.json({ message: "Login successful", token, username: user.username, userId: user._id });
   } catch (error) {
@@ -96,7 +97,7 @@ const verifyToken = (req, res, next) => {
   if (!token) return res.status(401).json({ message: "Access denied!" });
 
   try {
-    const decoded = jwt.verify(token.split(" ")[1], JWT_SECRET);
+    const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
@@ -203,4 +204,6 @@ app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
 });
 
 // ✅ Start Server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
