@@ -13,36 +13,33 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
-const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure API URL is correct
+const API_URL = "https://cookpad.onrender.com/api/recipes"; // Make sure this is correct
 
 const AddRecipe = () => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [ingredients, setIngredients] = useState([]);  // Store as array
-  const [instructions, setInstructions] = useState([]); // Store as array
+  const [ingredients, setIngredients] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null); // Preview image before upload
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
 
+  // Handle Image Change
   const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setImagePreview(URL.createObjectURL(file)); // Preview before upload
+    }
   };
 
-  // Handle ingredient input as multiline
-  const handleIngredientsChange = (e) => {
-    setIngredients(e.target.value.split("\n")); // Split on new lines
-  };
-
-  // Handle instructions input as multiline
-  const handleInstructionsChange = (e) => {
-    setInstructions(e.target.value.split("\n")); // Split on new lines
-  };
-
+  // Handle Form Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
-    if (!title || !category || ingredients.length === 0 || instructions.length === 0) {
+    if (!title || !category || !ingredients || !instructions) {
       setMessage("All fields are required!");
       setMessageType("error");
       return;
@@ -51,11 +48,11 @@ const AddRecipe = () => {
     const formData = new FormData();
     formData.append("title", title);
     formData.append("category", category);
-    formData.append("ingredients", ingredients.join("\n")); // Join before sending
-    formData.append("instructions", instructions.join("\n")); // Join before sending
+    formData.append("ingredients", ingredients);
+    formData.append("instructions", instructions);
     if (image) formData.append("image", image);
 
-    const token = localStorage.getItem("token"); // Get token from storage
+    const token = localStorage.getItem("token"); // Get the token
 
     if (!token) {
       setMessage("You must be logged in to add a recipe.");
@@ -74,15 +71,19 @@ const AddRecipe = () => {
         },
       });
 
+      console.log("API Response:", response.data); // Debugging response
+
       setMessage(response.data.message || "Recipe added successfully!");
       setMessageType("success");
 
       // Reset form fields
       setTitle("");
       setCategory("");
-      setIngredients([]);
-      setInstructions([]);
+      setIngredients("");
+      setInstructions("");
       setImage(null);
+      setImagePreview(response.data.imageUrl || null); // Display uploaded image
+
     } catch (error) {
       console.error("Error Response:", error.response); // Debugging API response
       setMessage(error.response?.data?.message || "Failed to add recipe. Try again later.");
@@ -104,7 +105,7 @@ const AddRecipe = () => {
           variant="h4"
           sx={{ marginBottom: "20px", textAlign: "center" }}
         >
-          Add New Recipe
+          🍽️ Add New Recipe
         </Typography>
 
         {message && <Alert severity={messageType} sx={{ marginBottom: "15px" }}>{message}</Alert>}
@@ -127,44 +128,62 @@ const AddRecipe = () => {
               onChange={(e) => setCategory(e.target.value)}
               required
             >
-              <MenuItem value="Vegetarian">Vegetarian</MenuItem>
-              <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
-              <MenuItem value="Desserts">Desserts</MenuItem>
-              <MenuItem value="Drinks">Drinks</MenuItem>
-              <MenuItem value="Snacks">Snacks</MenuItem>
+              <MenuItem value="Vegetarian">🥦 Vegetarian</MenuItem>
+              <MenuItem value="Non-Vegetarian">🍗 Non-Vegetarian</MenuItem>
+              <MenuItem value="Desserts">🍰 Desserts</MenuItem>
+              <MenuItem value="Drinks">🥤 Drinks</MenuItem>
+              <MenuItem value="Snacks">🍟 Snacks</MenuItem>
             </Select>
           </FormControl>
 
-          {/* Ingredients with spacing */}
           <TextField
-            label="Ingredients (Enter each ingredient on a new line)"
+            label="Ingredients (comma-separated)"
             fullWidth
-            multiline
-            rows={5}
             variant="outlined"
-            value={ingredients.join("\n")} // Join array for display
-            onChange={handleIngredientsChange}
+            value={ingredients}
+            onChange={(e) => setIngredients(e.target.value)}
             required
             margin="normal"
           />
 
-          {/* Instructions with spacing */}
           <TextField
-            label="Instructions (Enter each step on a new line)"
+            label="Instructions"
             fullWidth
             multiline
-            rows={5}
+            rows={4}
             variant="outlined"
-            value={instructions.join("\n")} // Join array for display
-            onChange={handleInstructionsChange}
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
             required
             margin="normal"
           />
 
-          <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginTop: "10px" }} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            style={{ marginTop: "10px" }}
+          />
+
+          {/* Show Image Preview Before Upload */}
+          {imagePreview && (
+            <Box
+              sx={{
+                marginTop: "10px",
+                textAlign: "center",
+              }}
+            >
+              <Typography variant="subtitle1">📷 Image Preview:</Typography>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{ width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "5px" }}
+              />
+            </Box>
+          )}
 
           <Button type="submit" variant="contained" fullWidth sx={{ marginTop: "20px" }}>
-            Add Recipe
+            ✅ Add Recipe
           </Button>
         </form>
       </Box>
