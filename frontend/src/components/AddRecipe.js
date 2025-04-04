@@ -13,13 +13,13 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
-const API_URL = "https://cookpad.onrender.com/api/recipes"; // Make sure this is the correct API URL
+const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure API URL is correct
 
 const AddRecipe = () => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [instructions, setInstructions] = useState("");
+  const [ingredients, setIngredients] = useState([]);  // Store as array
+  const [instructions, setInstructions] = useState([]); // Store as array
   const [image, setImage] = useState(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
@@ -28,11 +28,21 @@ const AddRecipe = () => {
     setImage(e.target.files[0]);
   };
 
+  // Handle ingredient input as multiline
+  const handleIngredientsChange = (e) => {
+    setIngredients(e.target.value.split("\n")); // Split on new lines
+  };
+
+  // Handle instructions input as multiline
+  const handleInstructionsChange = (e) => {
+    setInstructions(e.target.value.split("\n")); // Split on new lines
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
-    if (!title || !category || !ingredients || !instructions) {
+    if (!title || !category || ingredients.length === 0 || instructions.length === 0) {
       setMessage("All fields are required!");
       setMessageType("error");
       return;
@@ -41,11 +51,11 @@ const AddRecipe = () => {
     const formData = new FormData();
     formData.append("title", title);
     formData.append("category", category);
-    formData.append("ingredients", ingredients);
-    formData.append("instructions", instructions);
+    formData.append("ingredients", ingredients.join("\n")); // Join before sending
+    formData.append("instructions", instructions.join("\n")); // Join before sending
     if (image) formData.append("image", image);
 
-    const token = localStorage.getItem("token"); // Get the token
+    const token = localStorage.getItem("token"); // Get token from storage
 
     if (!token) {
       setMessage("You must be logged in to add a recipe.");
@@ -70,8 +80,8 @@ const AddRecipe = () => {
       // Reset form fields
       setTitle("");
       setCategory("");
-      setIngredients("");
-      setInstructions("");
+      setIngredients([]);
+      setInstructions([]);
       setImage(null);
     } catch (error) {
       console.error("Error Response:", error.response); // Debugging API response
@@ -125,23 +135,28 @@ const AddRecipe = () => {
             </Select>
           </FormControl>
 
+          {/* Ingredients with spacing */}
           <TextField
-            label="Ingredients (comma-separated)"
+            label="Ingredients (Enter each ingredient on a new line)"
             fullWidth
+            multiline
+            rows={5}
             variant="outlined"
-            value={ingredients}
-            onChange={(e) => setIngredients(e.target.value)}
+            value={ingredients.join("\n")} // Join array for display
+            onChange={handleIngredientsChange}
             required
             margin="normal"
           />
+
+          {/* Instructions with spacing */}
           <TextField
-            label="Instructions"
+            label="Instructions (Enter each step on a new line)"
             fullWidth
             multiline
-            rows={4}
+            rows={5}
             variant="outlined"
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
+            value={instructions.join("\n")} // Join array for display
+            onChange={handleInstructionsChange}
             required
             margin="normal"
           />
