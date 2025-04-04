@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || "https://cookpad.onrender.com/api/recipes"; // Ensure this is correct
+const API_URL = "https://cookpad.onrender.com/api/recipes"; // Make sure this is the correct API URL
 
 const AddRecipe = () => {
   const [title, setTitle] = useState("");
@@ -45,13 +45,17 @@ const AddRecipe = () => {
     formData.append("instructions", instructions);
     if (image) formData.append("image", image);
 
+    const token = localStorage.getItem("token"); // Get the token
+
+    if (!token) {
+      setMessage("You must be logged in to add a recipe.");
+      setMessageType("error");
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setMessage("You must be logged in to add a recipe.");
-        setMessageType("error");
-        return;
-      }
+      console.log("Token being sent:", token); // Debugging token
+      console.log("Sending data:", formData); // Debugging request data
 
       const response = await axios.post(API_URL, formData, {
         headers: {
@@ -70,6 +74,7 @@ const AddRecipe = () => {
       setInstructions("");
       setImage(null);
     } catch (error) {
+      console.error("Error Response:", error.response); // Debugging API response
       setMessage(error.response?.data?.message || "Failed to add recipe. Try again later.");
       setMessageType("error");
     }
@@ -85,7 +90,10 @@ const AddRecipe = () => {
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <Typography variant="h4" sx={{ marginBottom: "20px", textAlign: "center" }}>
+        <Typography
+          variant="h4"
+          sx={{ marginBottom: "20px", textAlign: "center" }}
+        >
           Add New Recipe
         </Typography>
 
@@ -104,7 +112,11 @@ const AddRecipe = () => {
 
           <FormControl fullWidth margin="normal">
             <InputLabel>Category</InputLabel>
-            <Select value={category} onChange={(e) => setCategory(e.target.value)} required>
+            <Select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+            >
               <MenuItem value="Vegetarian">Vegetarian</MenuItem>
               <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
               <MenuItem value="Desserts">Desserts</MenuItem>
@@ -134,12 +146,7 @@ const AddRecipe = () => {
             margin="normal"
           />
 
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            style={{ marginTop: "10px", display: "block", marginBottom: "15px" }}
-          />
+          <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginTop: "10px" }} />
 
           <Button type="submit" variant="contained" fullWidth sx={{ marginTop: "20px" }}>
             Add Recipe
@@ -151,3 +158,4 @@ const AddRecipe = () => {
 };
 
 export default AddRecipe;
+
