@@ -9,30 +9,23 @@ const multer = require("multer");
 const path = require("path");
 
 const app = express();
-
-// ✅ CORS Configuration
-const CLIENT_URL = process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000";
-app.use(
-  cors({
-    origin: CLIENT_URL,
-    credentials: true,
-  })
-);
-
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); // Support form data
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
-// ✅ MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URI_LOCAL;
-mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("✅ Connected to MongoDB"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+// ✅ Use environment-based MongoDB connection
+const MONGO_URI = process.env.MONGO_URI; // Always use MongoDB Atlas in production
 
-// ✅ JWT Secret and Backend URL
-const JWT_SECRET = process.env.JWT_SECRET;
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+
+// ✅ Connect to MongoDB
+mongoose
+  .connect(MONGO_URI, { useUnifiedTopology: true })
+  .then(() => console.log(`✅ Connected to MongoDB: ${MONGO_URI}`))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ✅ User Schema
 const userSchema = new mongoose.Schema({
@@ -99,23 +92,15 @@ app.post("/api/auth/login", async (req, res) => {
 
 // ✅ Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
+  const token = req.headers["authorization"];
+  if (!token) return res.status(401).json({ message: "Access denied!" });
+
   try {
-    const authHeader = req.headers["authorization"];
-
-    // Check if token exists and starts with "Bearer "
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Access denied! Token missing or invalid." });
-    }
-
-    const token = authHeader.split(" ")[1]; // Extract the token after "Bearer "
-
-    // Verify the token using JWT_SECRET
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // Attach user data to the request object
-    next(); // Proceed to the next middleware
+    const decoded = jwt.verify(token.split(" ")[1], JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (error) {
-    console.error("❌ Token verification failed:", error.message);
-    return res.status(403).json({ message: "Invalid token!" });
+    res.status(403).json({ message: "Invalid token!" });
   }
 };
 
@@ -129,50 +114,93 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ API to upload recipe image
-app.post("/api/recipes/upload", upload.single("image"), (req, res) => {
+// ✅ Add Recipe API (Protected)
+app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) => {
   try {
-    const imageUrl = `${BACKEND_URL}/uploads/${req.file.filename}`;
-    res.json({ message: "Image uploaded successfully", imageUrl });
-  } catch (error) {
-    console.error("❌ Upload error:", error);
-    res.status(500).json({ message: "Server error. Try again!" });
-  }
-});
+    const { title, category, ingredients, instructions } = req.body;
+    if (!title || !category || !ingredients || !instructions)
+      return res.status(400).json({ message: "All fields are required!" });
 
-// ✅ Recipe API - Create a new recipe
-app.post("/api/recipes", verifyToken, async (req, res) => {
-  try {
-    const { title, category, ingredients, instructions, image } = req.body;
+    const formattedIngredients = Array.isArray(ingredients) ? ingredients : ingredients.split(",").map(i => i.trim());
+
     const newRecipe = new Recipe({
       title,
       category,
-      ingredients,
+      ingredients: formattedIngredients,
       instructions,
-      image,
-      createdBy: req.user.userId, // Linking recipe to the user
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      createdBy: req.user.userId,
     });
+
     await newRecipe.save();
-    res.status(201).json({ message: "Recipe created successfully", recipe: newRecipe });
+    res.status(201).json({ message: "Recipe added successfully!", recipe: newRecipe });
   } catch (error) {
-    console.error("❌ Recipe creation error:", error);
+    console.error("❌ Error adding recipe:", error);
     res.status(500).json({ message: "Server error. Try again!" });
   }
 });
 
-// ✅ Recipe API - Get all recipes
+// ✅ Get All Recipes or Filter by Category
 app.get("/api/recipes", async (req, res) => {
   try {
-    const recipes = await Recipe.find().populate("createdBy", "username");
-    res.json({ recipes });
+    const { category } = req.query;
+    const query = category ? { category } : {};
+
+    const recipes = await Recipe.find(query).populate("createdBy", "username");
+    res.status(200).json(recipes);
   } catch (error) {
-    console.error("❌ Get recipes error:", error);
-    res.status(500).json({ message: "Server error. Try again!" });
+    console.error("❌ Error fetching recipes:", error);
+    res.status(500).json({ message: "Failed to fetch recipes!" });
   }
 });
 
-// ✅ Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+// ✅ Edit Recipe API (Only Owner Can Edit)
+app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res) => {
+  try {
+    const { title, category, ingredients, instructions } = req.body;
+
+    const recipe = await Recipe.findById(req.params.id);
+    if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
+
+    if (recipe.createdBy.toString() !== req.user.userId)
+      return res.status(403).json({ message: "Unauthorized action!" });
+
+    const updateData = {
+      title,
+      category,
+      ingredients: Array.isArray(ingredients) ? ingredients : ingredients.split(",").map(i => i.trim()),
+      instructions,
+    };
+
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    res.json({ message: "Recipe updated successfully!", recipe: updatedRecipe });
+  } catch (error) {
+    console.error("❌ Error updating recipe:", error);
+    res.status(500).json({ message: "Failed to update recipe!" });
+  }
 });
+
+// ✅ Delete Recipe API (Only Owner Can Delete)
+app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
+  try {
+    const recipe = await Recipe.findById(req.params.id);
+    if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
+
+    if (recipe.createdBy.toString() !== req.user.userId)
+      return res.status(403).json({ message: "Unauthorized action!" });
+
+    await Recipe.findByIdAndDelete(req.params.id);
+    res.json({ message: "Recipe deleted successfully!" });
+  } catch (error) {
+    console.error("❌ Error deleting recipe:", error);
+    res.status(500).json({ message: "Failed to delete recipe!" });
+  }
+});
+
+// ✅ Start Server
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
