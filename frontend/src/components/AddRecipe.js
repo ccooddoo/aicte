@@ -6,116 +6,146 @@ import {
   Typography,
   Alert,
   Box,
-  Paper,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
 import axios from "axios";
 
 const AddRecipe = () => {
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [file, setFile] = useState(null);
+  const [image, setImage] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error");
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+  const API_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api/recipes";
+
+  const handleImageChange = (e) => {
+    setImage(e.target.files[0]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    setMessage("");
+
+    if (!title || !category || !ingredients || !instructions) {
+      setMessage("All fields are required!");
+      setMessageType("error");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("title", title);
+    formData.append("category", category);
     formData.append("ingredients", ingredients);
     formData.append("instructions", instructions);
-    if (file) formData.append("file", file);
+    if (image) formData.append("image", image);
 
     try {
-      await axios.post("http://localhost:5000/api/recipes", formData, {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(API_URL, formData, {
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
 
-      setSuccess("Recipe added successfully!");
+      setMessage(response.data.message || "Recipe added successfully!");
+      setMessageType("success");
+
+      // Reset form fields
       setTitle("");
+      setCategory("");
       setIngredients("");
       setInstructions("");
-      setFile(null);
+      setImage(null);
     } catch (error) {
-      setError(error.response?.data?.message || "Failed to add recipe!");
+      setMessage(error.response?.data?.message || "Failed to add recipe. Try again later.");
+      setMessageType("error");
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 5 }}>
-      <Paper elevation={3} sx={{ padding: 3, borderRadius: 2 }}>
-        <Typography variant="h4" gutterBottom align="center">
-          Add Recipe
+    <Container maxWidth="sm">
+      <Box
+        sx={{
+          padding: "40px",
+          backgroundColor: "white",
+          borderRadius: "8px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Typography
+          variant="h4"
+          sx={{ marginBottom: "20px", textAlign: "center" }}
+        >
+          Add New Recipe
         </Typography>
 
-        {error && <Alert severity="error">{error}</Alert>}
-        {success && <Alert severity="success">{success}</Alert>}
+        {message && <Alert severity={messageType} sx={{ marginBottom: "15px" }}>{message}</Alert>}
 
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 2 }}>
+        <form onSubmit={handleSubmit}>
           <TextField
-            label="Recipe Title"
+            label="Title"
+            fullWidth
             variant="outlined"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            fullWidth
             required
             margin="normal"
           />
 
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+            >
+              <MenuItem value="Vegetarian">Vegetarian</MenuItem>
+              <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
+              <MenuItem value="Desserts">Desserts</MenuItem>
+              <MenuItem value="Drinks">Drinks</MenuItem>
+              <MenuItem value="Snacks">Snacks</MenuItem>
+            </Select>
+          </FormControl>
+
           <TextField
-            label="Ingredients"
+            label="Ingredients (comma-separated)"
+            fullWidth
             variant="outlined"
             value={ingredients}
             onChange={(e) => setIngredients(e.target.value)}
-            fullWidth
             required
             margin="normal"
-            multiline
-            rows={3}
           />
-
           <TextField
             label="Instructions"
+            fullWidth
+            multiline
+            rows={4}
             variant="outlined"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            fullWidth
             required
             margin="normal"
-            multiline
-            rows={4}
           />
 
-          {/* Upload button */}
-          <input
-            accept="image/*,application/pdf"
-            type="file"
-            onChange={handleFileChange}
-            style={{ marginTop: "20px" }}
-          />
+          <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginTop: "10px" }} />
 
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            sx={{ padding: "12px 0", mt: 2 }}
-          >
+          <Button type="submit" variant="contained" fullWidth sx={{ marginTop: "20px" }}>
             Add Recipe
           </Button>
-        </Box>
-      </Paper>
+        </form>
+      </Box>
     </Container>
   );
 };
 
 export default AddRecipe;
+
