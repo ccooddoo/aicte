@@ -10,15 +10,15 @@ const path = require("path");
 
 const app = express();
 
-// ✅ CORS Configuration (Allow frontend URL to make requests)
-const CLIENT_URL = process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000";
+// ✅ CORS Configuration
+const CLIENT_URL = process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000"; // Frontend URL from .env
 app.use(cors({
-  origin: CLIENT_URL,
-  credentials: true,
+  origin: CLIENT_URL,  // Allow requests only from the frontend URL set in .env
+  credentials: true    // Allow cookies to be sent with requests
 }));
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); // Support form data
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
 // ✅ MongoDB Connection
@@ -28,8 +28,9 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+// ✅ JWT Secret and Backend URL
 const JWT_SECRET = process.env.JWT_SECRET;
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000"; // Backend URL from .env
 
 // ✅ User Schema
 const userSchema = new mongoose.Schema({
@@ -112,7 +113,7 @@ const verifyToken = (req, res, next) => {
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
   },
 });
 
@@ -139,7 +140,7 @@ app.post("/api/recipes", verifyToken, async (req, res) => {
       ingredients,
       instructions,
       image,
-      createdBy: req.user.userId, 
+      createdBy: req.user.userId, // Linking recipe to the user
     });
     await newRecipe.save();
     res.status(201).json({ message: "Recipe created successfully", recipe: newRecipe });
