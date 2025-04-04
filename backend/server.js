@@ -1,3 +1,5 @@
+require("dotenv").config(); // Load environment variables
+
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
@@ -9,16 +11,20 @@ const path = require("path");
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve images
+app.use(express.urlencoded({ extended: true })); // Support form data
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
-const PORT = process.env.PORT ||  5000;
-const MONGO_URI = "mongodb://localhost:27017/recipeDB"; // MongoDB connection
-const JWT_SECRET = "your_secret_key"; // Secret key for JWT
+// ✅ Use environment-based MongoDB connection
+const MONGO_URI = process.env.MONGO_URI; // Always use MongoDB Atlas in production
+
+
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 // ✅ Connect to MongoDB
 mongoose
   .connect(MONGO_URI, { useUnifiedTopology: true })
-  .then(() => console.log("✅ Connected to MongoDB"))
+  .then(() => console.log(`✅ Connected to MongoDB: ${MONGO_URI}`))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ✅ User Schema
@@ -34,7 +40,7 @@ const User = mongoose.model("User", userSchema);
 const recipeSchema = new mongoose.Schema({
   title: { type: String, required: true },
   category: { type: String, required: true },
-  ingredients: [String], // Ensures ingredients is always an array
+  ingredients: [String],
   instructions: { type: String, required: true },
   image: String,
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -108,7 +114,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ Add Recipe API (Protected & Fixed)
+// ✅ Add Recipe API (Protected)
 app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) => {
   try {
     const { title, category, ingredients, instructions } = req.body;
@@ -156,7 +162,6 @@ app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res
     const recipe = await Recipe.findById(req.params.id);
     if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
 
-    // ✅ फक्त Owner ला Edit करण्याची परवानगी
     if (recipe.createdBy.toString() !== req.user.userId)
       return res.status(403).json({ message: "Unauthorized action!" });
 
@@ -186,7 +191,6 @@ app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
     const recipe = await Recipe.findById(req.params.id);
     if (!recipe) return res.status(404).json({ message: "Recipe not found!" });
 
-    // ✅ फक्त Owner ला Delete करण्याची परवानगी
     if (recipe.createdBy.toString() !== req.user.userId)
       return res.status(403).json({ message: "Unauthorized action!" });
 
