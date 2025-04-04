@@ -22,8 +22,8 @@ const AddRecipe = () => {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
 
-  const API_URL =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api/recipes";
+
+const API_URL = "https://cookpad.onrender.com/api/recipes"; // Ensure this is correct
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
