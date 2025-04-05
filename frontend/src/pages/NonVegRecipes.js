@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
@@ -22,7 +21,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { jwtDecode } from "jwt-decode";
 
-const DrinkRecipes = () => {
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
+const NonVegRecipes = () => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,16 +37,15 @@ const DrinkRecipes = () => {
   const token = localStorage.getItem("token");
   const loggedInUserId = token ? jwtDecode(token).userId : null;
 
-  // Fetch Drink Recipes
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get("http://localhost:5000/api/recipes?category=Drink");
+      const response = await axios.get(`${API_BASE_URL}/api/recipes?category=Non-Vegetarian`);
       setRecipes(response.data);
     } catch (err) {
-      setError("⚠️ Unable to fetch drink recipes. Please try again later.");
-      console.error("Error fetching drink recipes:", err);
+      setError("⚠️ Unable to fetch non-veg recipes. Please try again later.");
+      console.error("Error fetching non-veg recipes:", err);
     } finally {
       setLoading(false);
     }
@@ -58,7 +58,7 @@ const DrinkRecipes = () => {
   const handleEditClick = (recipe) => {
     setEditRecipe(recipe);
     setTitle(recipe.title);
-    setIngredients(recipe.ingredients.join("\n"));
+    setIngredients(recipe.ingredients.join(", "));
     setInstructions(recipe.instructions);
     setOpen(true);
   };
@@ -71,12 +71,12 @@ const DrinkRecipes = () => {
 
     const updatedData = {
       title,
-      ingredients: ingredients.split("\n").map(i => i.trim()),
+      ingredients: ingredients.split(",").map((i) => i.trim()),
       instructions,
     };
 
     try {
-      await axios.put(`http://localhost:5000/api/recipes/${editRecipe._id}`, updatedData, {
+      await axios.put(`${API_BASE_URL}/api/recipes/${editRecipe._id}`, updatedData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("✅ Recipe updated successfully!");
@@ -90,11 +90,11 @@ const DrinkRecipes = () => {
 
   const handleDeleteRecipe = async (recipeId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/recipes/${recipeId}`, {
+      await axios.delete(`${API_BASE_URL}/api/recipes/${recipeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("🗑️ Recipe deleted successfully!");
-      setRecipes((prevRecipes) => prevRecipes.filter((r) => r._id !== recipeId));
+      setRecipes((prev) => prev.filter((r) => r._id !== recipeId));
     } catch (error) {
       console.error("Error deleting recipe:", error);
       alert("❌ Failed to delete recipe. Please try again.");
@@ -103,8 +103,8 @@ const DrinkRecipes = () => {
 
   return (
     <Container>
-      <Typography variant="h4" align="center" sx={{ fontWeight: "bold", color: "#0288D1", mb: 3 }}>
-        🥤 Drink Recipes
+      <Typography variant="h4" align="center" sx={{ fontWeight: "bold", color: "#D84315", mb: 3 }}>
+        🍗 Non-Vegetarian Recipes
       </Typography>
 
       {loading && (
@@ -137,26 +137,22 @@ const DrinkRecipes = () => {
                   <CardMedia
                     component="img"
                     sx={{ width: "100%", height: 220, objectFit: "cover", borderRadius: "4px 4px 0 0" }}
-                    image={recipe.image.startsWith("http") ? recipe.image : `http://localhost:5000${recipe.image}`}
+                    image={recipe.image.startsWith("http") ? recipe.image : `${API_BASE_URL}${recipe.image}`}
                     alt={recipe.title}
                   />
                 )}
                 <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#0288D1", mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#D84315", mb: 1 }}>
                     {recipe.title}
                   </Typography>
-
                   <Typography sx={{ fontSize: "0.9rem", color: "#616161", mt: 1 }}>
                     <b>Added by:</b> {recipe.createdBy?.username || "Unknown"}
                   </Typography>
-
                   <Button
                     variant="contained"
                     color="primary"
                     fullWidth
-                    onClick={() =>
-                      setExpandedRecipe(expandedRecipe === recipe._id ? null : recipe._id)
-                    }
+                    onClick={() => setExpandedRecipe(expandedRecipe === recipe._id ? null : recipe._id)}
                   >
                     {expandedRecipe === recipe._id ? "⬆️ Show Less" : "⬇️ Read More"}
                   </Button>
@@ -167,9 +163,8 @@ const DrinkRecipes = () => {
                         Ingredients:
                       </Typography>
                       <Typography sx={{ whiteSpace: "pre-line", color: "#616161" }}>
-                        {recipe.ingredients.join("\n")}
+                        {recipe.ingredients.join(", ")}
                       </Typography>
-
                       <Typography variant="body2" sx={{ fontWeight: "bold", color: "#E65100", mt: 1 }}>
                         Instructions:
                       </Typography>
@@ -206,20 +201,39 @@ const DrinkRecipes = () => {
         </Grid>
       )}
 
+      {/* Edit Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle>Edit Drink Recipe</DialogTitle>
+        <DialogTitle>Edit Non-Veg Recipe</DialogTitle>
         <DialogContent>
           <TextField fullWidth label="Title" value={title} onChange={(e) => setTitle(e.target.value)} sx={{ mt: 2 }} />
-          <TextField fullWidth label="Ingredients" value={ingredients} onChange={(e) => setIngredients(e.target.value)} sx={{ mt: 2 }} multiline rows={4} />
-          <TextField fullWidth label="Instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} sx={{ mt: 2 }} multiline rows={4} />
+          <TextField
+            fullWidth
+            label="Ingredients"
+            value={ingredients}
+            onChange={(e) => setIngredients(e.target.value)}
+            sx={{ mt: 2 }}
+            multiline
+            rows={4}
+          />
+          <TextField
+            fullWidth
+            label="Instructions"
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            sx={{ mt: 2 }}
+            multiline
+            rows={4}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleEditRecipe} color="primary">Save</Button>
+          <Button onClick={handleEditRecipe} color="primary">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
   );
 };
 
-export default DrinkRecipes;
+export default NonVegRecipes;
