@@ -19,9 +19,12 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
-const DrinksRecipes = () => {
+// ✅ USE ENV BACKEND URL
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
+const DrinkRecipes = () => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -35,12 +38,11 @@ const DrinksRecipes = () => {
   const token = localStorage.getItem("token");
   const loggedInUserId = token ? jwtDecode(token).userId : null;
 
-  // Fetch Drink Recipes
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get("http://localhost:5000/api/recipes?category=Drinks");
+      const response = await axios.get(`${API_BASE_URL}/api/recipes?category=Drinks`);
       setRecipes(response.data);
     } catch (err) {
       setError("⚠️ Unable to fetch drink recipes. Please try again later.");
@@ -54,7 +56,6 @@ const DrinksRecipes = () => {
     fetchRecipes();
   }, [fetchRecipes]);
 
-  // Open Edit Dialog
   const handleEditClick = (recipe) => {
     setEditRecipe(recipe);
     setTitle(recipe.title);
@@ -63,17 +64,20 @@ const DrinksRecipes = () => {
     setOpen(true);
   };
 
-  // Handle Recipe Update
   const handleEditRecipe = async () => {
     if (!title || !ingredients || !instructions) {
       alert("⚠️ All fields are required!");
       return;
     }
 
-    const updatedData = { title, ingredients: ingredients.split(",").map(i => i.trim()), instructions };
+    const updatedData = {
+      title,
+      ingredients: ingredients.split(",").map((i) => i.trim()),
+      instructions,
+    };
 
     try {
-      await axios.put(`http://localhost:5000/api/recipes/${editRecipe._id}`, updatedData, {
+      await axios.put(`${API_BASE_URL}/api/recipes/${editRecipe._id}`, updatedData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("✅ Recipe updated successfully!");
@@ -85,14 +89,13 @@ const DrinksRecipes = () => {
     }
   };
 
-  // Handle Recipe Deletion
   const handleDeleteRecipe = async (recipeId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/recipes/${recipeId}`, {
+      await axios.delete(`${API_BASE_URL}/api/recipes/${recipeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("🗑️ Recipe deleted successfully!");
-      setRecipes((prevRecipes) => prevRecipes.filter((recipe) => recipe._id !== recipeId));
+      setRecipes((prev) => prev.filter((r) => r._id !== recipeId));
     } catch (error) {
       console.error("Error deleting recipe:", error);
       alert("❌ Failed to delete recipe. Please try again.");
@@ -101,25 +104,22 @@ const DrinksRecipes = () => {
 
   return (
     <Container>
-      <Typography variant="h4" align="center" sx={{ fontWeight: "bold", color: "#00796B", mb: 3 }}>
+      <Typography variant="h4" align="center" sx={{ fontWeight: "bold", color: "#0288D1", mb: 3 }}>
         🥤 Drink Recipes
       </Typography>
 
-      {/* Loading State */}
       {loading && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
           <CircularProgress />
         </Box>
       )}
 
-      {/* Error State */}
       {error && (
         <Typography align="center" sx={{ color: "red", fontSize: "1rem", mt: 3 }}>
           {error}
         </Typography>
       )}
 
-      {/* Recipes Grid */}
       {!loading && !error && (
         <Grid container spacing={3} justifyContent="center">
           {recipes.map((recipe) => (
@@ -134,25 +134,21 @@ const DrinksRecipes = () => {
                   "&:hover": { transform: "scale(1.05)", boxShadow: 6 },
                 }}
               >
-                {/* Recipe Image */}
                 {recipe.image && (
                   <CardMedia
                     component="img"
                     sx={{ width: "100%", height: 220, objectFit: "cover", borderRadius: "4px 4px 0 0" }}
-                    image={recipe.image.startsWith("http") ? recipe.image : `http://localhost:5000${recipe.image}`}
+                    image={recipe.image.startsWith("http") ? recipe.image : `${API_BASE_URL}${recipe.image}`}
                     alt={recipe.title}
                   />
                 )}
                 <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#00796B", mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#0288D1", mb: 1 }}>
                     {recipe.title}
                   </Typography>
-
-                  {/* Recipe Creator Name */}
                   <Typography sx={{ fontSize: "0.9rem", color: "#616161", mt: 1 }}>
                     <b>Added by:</b> {recipe.createdBy?.username || "Unknown"}
                   </Typography>
-
                   <Button
                     variant="contained"
                     color="primary"
@@ -177,13 +173,22 @@ const DrinksRecipes = () => {
                         {recipe.instructions}
                       </Typography>
 
-                      {/* Show Edit & Delete Only for Recipe Owner */}
                       {loggedInUserId === recipe.createdBy?._id && (
                         <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-                          <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => handleEditClick(recipe)}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleEditClick(recipe)}
+                          >
                             Edit
                           </Button>
-                          <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => handleDeleteRecipe(recipe._id)}>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDeleteRecipe(recipe._id)}
+                          >
                             Delete
                           </Button>
                         </Box>
@@ -197,21 +202,39 @@ const DrinksRecipes = () => {
         </Grid>
       )}
 
-      {/* Edit Recipe Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle>Edit Recipe</DialogTitle>
+        <DialogTitle>Edit Drink Recipe</DialogTitle>
         <DialogContent>
           <TextField fullWidth label="Title" value={title} onChange={(e) => setTitle(e.target.value)} sx={{ mt: 2 }} />
-          <TextField fullWidth label="Ingredients" value={ingredients} onChange={(e) => setIngredients(e.target.value)} sx={{ mt: 2 }} multiline rows={4} />
-          <TextField fullWidth label="Instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} sx={{ mt: 2 }} multiline rows={4} />
+          <TextField
+            fullWidth
+            label="Ingredients"
+            value={ingredients}
+            onChange={(e) => setIngredients(e.target.value)}
+            sx={{ mt: 2 }}
+            multiline
+            rows={4}
+          />
+          <TextField
+            fullWidth
+            label="Instructions"
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            sx={{ mt: 2 }}
+            multiline
+            rows={4}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleEditRecipe} color="primary">Save</Button>
+          <Button onClick={handleEditRecipe} color="primary">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
   );
 };
 
-export default DrinksRecipes;
+export default DrinkRecipes;
