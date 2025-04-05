@@ -9,43 +9,44 @@ const multer = require("multer");
 const path = require("path");
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS setup
+app.use(cors({
+  origin: process.env.REACT_APP_FRONTEND_URL,
+  credentials: true,
+}));
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Support form data
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
-// ✅ Use environment-based MongoDB connection
-const MONGO_URI = process.env.MONGO_URI; // Always use MongoDB Atlas in production
-
-
+// ✅ Environment variables
+const MONGO_URI = process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ✅ Connect to MongoDB
-mongoose
-  .connect(MONGO_URI, { useUnifiedTopology: true })
-  .then(() => console.log(✅ Connected to MongoDB: ${MONGO_URI}))
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log(`✅ Connected to MongoDB`))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ✅ User Schema
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
+  email:    { type: String, required: true, unique: true },
   password: { type: String, required: true },
 });
-
 const User = mongoose.model("User", userSchema);
 
 // ✅ Recipe Schema
 const recipeSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  category: { type: String, required: true },
-  ingredients: [String],
+  title:        { type: String, required: true },
+  category:     { type: String, required: true },
+  ingredients:  [String],
   instructions: { type: String, required: true },
-  image: String,
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  image:        String,
+  createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 });
-
 const Recipe = mongoose.model("Recipe", recipeSchema);
 
 // ✅ Register API
@@ -76,10 +77,12 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid email or password" });
+    if (!user)
+      return res.status(400).json({ message: "Invalid email or password" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid email or password" });
 
     const token = jwt.sign({ userId: user._id, username: user.username }, JWT_SECRET, { expiresIn: "1h" });
 
@@ -90,7 +93,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// ✅ Middleware to verify JWT token
+// ✅ JWT Middleware
 const verifyToken = (req, res, next) => {
   const token = req.headers["authorization"];
   if (!token) return res.status(401).json({ message: "Access denied!" });
@@ -104,31 +107,32 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// ✅ Image Upload Configuration
+// ✅ Multer Config
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
+    cb(null, Date.now() + path.extname(file.originalname));
   },
 });
-
 const upload = multer({ storage });
 
-// ✅ Add Recipe API (Protected)
+// ✅ Add Recipe (Protected)
 app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) => {
   try {
     const { title, category, ingredients, instructions } = req.body;
     if (!title || !category || !ingredients || !instructions)
       return res.status(400).json({ message: "All fields are required!" });
 
-    const formattedIngredients = Array.isArray(ingredients) ? ingredients : ingredients.split(",").map(i => i.trim());
+    const formattedIngredients = Array.isArray(ingredients)
+      ? ingredients
+      : ingredients.split(",").map(i => i.trim());
 
     const newRecipe = new Recipe({
       title,
       category,
       ingredients: formattedIngredients,
       instructions,
-      image: req.file ? /uploads/${req.file.filename} : null,
+      image: req.file ? `/uploads/${req.file.filename}` : null,
       createdBy: req.user.userId,
     });
 
@@ -140,12 +144,11 @@ app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) =
   }
 });
 
-// ✅ Get All Recipes or Filter by Category
+// ✅ Get Recipes (All or Filtered)
 app.get("/api/recipes", async (req, res) => {
   try {
     const { category } = req.query;
     const query = category ? { category } : {};
-
     const recipes = await Recipe.find(query).populate("createdBy", "username");
     res.status(200).json(recipes);
   } catch (error) {
@@ -154,7 +157,7 @@ app.get("/api/recipes", async (req, res) => {
   }
 });
 
-// ✅ Edit Recipe API (Only Owner Can Edit)
+// ✅ Edit Recipe
 app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
     const { title, category, ingredients, instructions } = req.body;
@@ -173,11 +176,10 @@ app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res
     };
 
     if (req.file) {
-      updateData.image = /uploads/${req.file.filename};
+      updateData.image = `/uploads/${req.file.filename}`;
     }
 
     const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, updateData, { new: true });
-
     res.json({ message: "Recipe updated successfully!", recipe: updatedRecipe });
   } catch (error) {
     console.error("❌ Error updating recipe:", error);
@@ -185,7 +187,7 @@ app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res
   }
 });
 
-// ✅ Delete Recipe API (Only Owner Can Delete)
+// ✅ Delete Recipe
 app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
@@ -203,4 +205,7 @@ app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
 });
 
 // ✅ Start Server
-app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
