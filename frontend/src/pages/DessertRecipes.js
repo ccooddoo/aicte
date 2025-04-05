@@ -21,6 +21,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { jwtDecode } from "jwt-decode";
 
+// ✅ USE ENV BACKEND URL
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
 const DessertRecipes = () => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,6 @@ const DessertRecipes = () => {
   const [instructions, setInstructions] = useState("");
   const [open, setOpen] = useState(false);
 
-  const API_BASE = process.env.REACT_APP_API_BASE_URL;
   const token = localStorage.getItem("token");
   const loggedInUserId = token ? jwtDecode(token).userId : null;
 
@@ -40,7 +42,7 @@ const DessertRecipes = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get(`${API_BASE}/api/recipes?category=Desserts`);
+      const response = await axios.get(`${API_BASE_URL}/api/recipes?category=Desserts`);
       setRecipes(response.data);
     } catch (err) {
       setError("⚠️ Unable to fetch dessert recipes. Please try again later.");
@@ -48,7 +50,7 @@ const DessertRecipes = () => {
     } finally {
       setLoading(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchRecipes();
@@ -75,7 +77,7 @@ const DessertRecipes = () => {
     };
 
     try {
-      await axios.put(`${API_BASE}/api/recipes/${editRecipe._id}`, updatedData, {
+      await axios.put(`${API_BASE_URL}/api/recipes/${editRecipe._id}`, updatedData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("✅ Recipe updated successfully!");
@@ -89,11 +91,11 @@ const DessertRecipes = () => {
 
   const handleDeleteRecipe = async (recipeId) => {
     try {
-      await axios.delete(`${API_BASE}/api/recipes/${recipeId}`, {
+      await axios.delete(`${API_BASE_URL}/api/recipes/${recipeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert("🗑️ Recipe deleted successfully!");
-      setRecipes((prevRecipes) => prevRecipes.filter((recipe) => recipe._id !== recipeId));
+      setRecipes((prev) => prev.filter((r) => r._id !== recipeId));
     } catch (error) {
       console.error("Error deleting recipe:", error);
       alert("❌ Failed to delete recipe. Please try again.");
@@ -136,11 +138,7 @@ const DessertRecipes = () => {
                   <CardMedia
                     component="img"
                     sx={{ width: "100%", height: 220, objectFit: "cover", borderRadius: "4px 4px 0 0" }}
-                    image={
-                      recipe.image.startsWith("http")
-                        ? recipe.image
-                        : `${API_BASE}${recipe.image}`
-                    }
+                    image={recipe.image.startsWith("http") ? recipe.image : `${API_BASE_URL}${recipe.image}`}
                     alt={recipe.title}
                   />
                 )}
@@ -151,7 +149,6 @@ const DessertRecipes = () => {
                   <Typography sx={{ fontSize: "0.9rem", color: "#616161", mt: 1 }}>
                     <b>Added by:</b> {recipe.createdBy?.username || "Unknown"}
                   </Typography>
-
                   <Button
                     variant="contained"
                     color="primary"
@@ -209,13 +206,7 @@ const DessertRecipes = () => {
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
         <DialogTitle>Edit Recipe</DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            label="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sx={{ mt: 2 }}
-          />
+          <TextField fullWidth label="Title" value={title} onChange={(e) => setTitle(e.target.value)} sx={{ mt: 2 }} />
           <TextField
             fullWidth
             label="Ingredients"
@@ -247,4 +238,5 @@ const DessertRecipes = () => {
 };
 
 export default DessertRecipes;
+
 
