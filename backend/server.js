@@ -1,4 +1,4 @@
-require("dotenv").config(); // Load environment variables
+require("dotenv").config(); // Load environment variables FIRST
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -7,8 +7,17 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
+const cloudinary = require("cloudinary").v2;
+const { Readable } = require("stream");
 
 const app = express();
+
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // ✅ CORS setup
 app.use(cors({
@@ -18,7 +27,6 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded images
 
 // ✅ Environment variables
 const MONGO_URI = process.env.MONGO_URI;
@@ -107,16 +115,25 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// ✅ Multer Config
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+// ✅ Multer Config (memory)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Add Recipe (Protected)
+// ✅ Helper: Upload to Cloudinary
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "recipes" },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    Readable.from(buffer).pipe(stream);
+  });
+};
+
+// ✅ Add Recipe
 app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) => {
   try {
     const { title, category, ingredients, instructions } = req.body;
@@ -127,12 +144,17 @@ app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) =
       ? ingredients
       : ingredients.split(",").map(i => i.trim());
 
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadToCloudinary(req.file.buffer);
+    }
+
     const newRecipe = new Recipe({
       title,
       category,
       ingredients: formattedIngredients,
       instructions,
-      image: req.file ? `/uploads/${req.file.filename}` : null,
+      image: imageUrl,
       createdBy: req.user.userId,
     });
 
@@ -144,7 +166,7 @@ app.post("/api/recipes", verifyToken, upload.single("image"), async (req, res) =
   }
 });
 
-// ✅ Get Recipes (All or Filtered)
+// ✅ Get Recipes
 app.get("/api/recipes", async (req, res) => {
   try {
     const { category } = req.query;
@@ -176,7 +198,7 @@ app.put("/api/recipes/:id", verifyToken, upload.single("image"), async (req, res
     };
 
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      updateData.image = await uploadToCloudinary(req.file.buffer);
     }
 
     const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -208,4 +230,3 @@ app.delete("/api/recipes/:id", verifyToken, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
-
