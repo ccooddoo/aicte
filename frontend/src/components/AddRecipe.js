@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+]import React, { useState } from "react";
 import {
   TextField,
   Button,
@@ -21,21 +21,19 @@ const AddRecipe = () => {
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
   const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null); // Preview before upload
-  const [uploadedImageUrl, setUploadedImageUrl] = useState(null); // To store uploaded image URL
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
 
-  // Handle Image Selection & Preview Before Upload
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
-      setImagePreview(URL.createObjectURL(file)); // Preview before upload
+      setImagePreview(URL.createObjectURL(file));
     }
   };
 
-  // Handle Form Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -51,10 +49,9 @@ const AddRecipe = () => {
     formData.append("category", category);
     formData.append("ingredients", ingredients);
     formData.append("instructions", instructions);
-    if (image) formData.append("image", image);
+    if (image) formData.append("image", image); // Cloudinary will handle it
 
-    const token = localStorage.getItem("token"); // Get user token
-
+    const token = localStorage.getItem("token");
     if (!token) {
       setMessage("You must be logged in to add a recipe.");
       setMessageType("error");
@@ -62,8 +59,6 @@ const AddRecipe = () => {
     }
 
     try {
-      console.log("Sending data:", formData); // Debugging form data
-
       const response = await axios.post(API_URL, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -71,27 +66,26 @@ const AddRecipe = () => {
         },
       });
 
-      console.log("API Response:", response.data); // Debugging API response
-
       setMessage(response.data.message || "Recipe added successfully!");
       setMessageType("success");
 
-      // ✅ Update image preview with the uploaded image URL from API response
-      if (response.data.imageUrl) {
-        setUploadedImageUrl(response.data.imageUrl);
+      // ✅ Use Cloudinary image URL if returned from backend
+      if (response.data.image) {
+        setUploadedImageUrl(response.data.image);
       }
 
-      // ✅ Reset form fields
+      // ✅ Reset form
       setTitle("");
       setCategory("");
       setIngredients("");
       setInstructions("");
       setImage(null);
       setImagePreview(null);
-
     } catch (error) {
-      console.error("Error Response:", error.response);
-      setMessage(error.response?.data?.message || "Failed to add recipe. Try again later.");
+      console.error("Error adding recipe:", error.response);
+      setMessage(
+        error.response?.data?.message || "Failed to add recipe. Try again later."
+      );
       setMessageType("error");
     }
   };
@@ -160,7 +154,7 @@ const AddRecipe = () => {
             margin="normal"
           />
 
-          {/* Image Upload */}
+          {/* Image Upload Input */}
           <input
             type="file"
             accept="image/*"
@@ -168,7 +162,7 @@ const AddRecipe = () => {
             style={{ marginTop: "10px" }}
           />
 
-          {/* Show Image Preview (Before Upload or After Submission) */}
+          {/* Show Image Preview */}
           {(imagePreview || uploadedImageUrl) && (
             <Box sx={{ marginTop: "10px", textAlign: "center" }}>
               <Typography variant="subtitle1">📷 Image Preview:</Typography>
@@ -195,4 +189,3 @@ const AddRecipe = () => {
 };
 
 export default AddRecipe;
-
